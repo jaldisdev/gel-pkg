@@ -171,7 +171,11 @@ class GelServerExtension(packages.BuildSystemMakePackage):
     ) -> pathlib.Path:
         prefix = build.get_install_prefix(self)
         lib_dir = build.get_install_path(self, "lib").relative_to(prefix)
-        if pkg.name not in {"postgresql-edgedb", "edgedb-server"}:
+        if pkg.name not in {
+            "postgresql-edgedb",
+            "edgedb-server",
+            "gel-server",
+        }:
             return lib_dir / "postgresql" / self.unique_name
         else:
             return pathlib.Path("")
