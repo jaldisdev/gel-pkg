@@ -53,6 +53,19 @@ class GelCLI(packages.BundledRustPackage):
 
         return super().get_build_script(build)
 
+    def get_build_install_script(self, build: targets.Build) -> str:
+        script = super().get_build_install_script(build)
+        if self.marketing_slug != "edgedb":
+            install_bindir = build.get_build_install_dir(
+                self, relative_to="pkgbuild"
+            ) / build.get_bundle_install_path("systembin").relative_to("/")
+            script += textwrap.dedent(
+                f"""\
+                ln -sf "{self.marketing_slug}" "{install_bindir}/edgedb"
+                """
+            )
+        return script
+
     def get_transition_packages(
         self,
         build: targets.Build,
@@ -76,6 +89,8 @@ class GelCLI(packages.BundledRustPackage):
     def get_file_install_entries(self, build: targets.Build) -> list[str]:
         entries = list(super().get_file_install_entries(build))
         entries.append(f"{{systembindir}}/{self.marketing_slug}{{exesuffix}}")
+        if self.marketing_slug != "edgedb":
+            entries.append("{systembindir}/edgedb{exesuffix}")
         return entries
 
 
