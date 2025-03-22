@@ -73,7 +73,7 @@ if [ -z "${VIRTUAL_ENV}"]; then
 fi
 
 ${PYTHON} -m pip install --upgrade --upgrade-strategy=eager \
-    git+https://github.com/edgedb/edgedb-pkg
+    git+https://github.com/geldata/gel-pkg
 
 for old in "${dest}"/*.tar; do
     rm -f "${old}"

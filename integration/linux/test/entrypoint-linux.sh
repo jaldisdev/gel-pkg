@@ -19,17 +19,18 @@ else
 fi
 
 machine=$(uname -m)
-cliurl="https://packages.edgedb.com/dist/${machine}-unknown-linux-musl/edgedb-cli"
+cliurl="https://packages.geldata.com/dist/${machine}-unknown-linux-musl/gel-cli"
 
 try=1
 while [ $try -le 5 ]; do
-    curl --proto '=https' --tlsv1.2 -sSfL "$cliurl" -o /bin/edgedb && break || true
+    curl --proto '=https' --tlsv1.2 -sSfL "$cliurl" -o /bin/gel && break || true
     try=$(( $try + 1 ))
     echo "Retrying in 10 seconds (try #${try})"
     sleep 10
 done
 
-chmod +x /bin/edgedb
+chmod +x /bin/gel
+ln -s gel /bin/edgedb
 
 tarball=
 for pack in ${dest}/*.tar; do
@@ -48,20 +49,20 @@ if [ -z "${tarball}" ]; then
     exit 1
 fi
 
-mkdir /edgedb
+mkdir /gel
 chmod 1777 /tmp
-tar -xOf "${pack}" "${tarball}" | tar -xzf- --strip-components=1 -C "/edgedb/"
+tar -xOf "${pack}" "${tarball}" | tar -xzf- --strip-components=1 -C "/gel/"
 touch /etc/group
-addgroup edgedb
+addgroup gel
 touch /etc/passwd
-adduser -G edgedb -H -D edgedb
+adduser -G gel -H -D gel
 
 if [ "$1" == "bash" ]; then
     exec /bin/sh
 fi
 
-exec gosu edgedb:edgedb /edgedb/bin/python3 \
+exec gosu gel:gel /gel/bin/python3 \
     -m edb.tools --no-devmode test \
-    /edgedb/share/tests \
+    /gel/share/tests \
     -e cqa_ -e tools_ \
     --verbose ${dash_j}

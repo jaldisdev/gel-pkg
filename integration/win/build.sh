@@ -2,7 +2,7 @@
 
 set -Exeo pipefail
 
-pip install -U git+https://github.com/edgedb/edgedb-pkg
+pip install -U git+https://github.com/geldata/gel-pkg
 
 # Circumvent a dubious practice of Windows intercepting
 # bare invocations of "bash" to mean "WSL", since make

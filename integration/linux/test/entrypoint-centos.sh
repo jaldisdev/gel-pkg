@@ -12,8 +12,8 @@ fi
 
 source /etc/os-release
 
-curl -fL https://packages.edgedb.com/rpm/edgedb-rhel.repo \
-    >/etc/yum.repos.d/edgedb.repo
+curl -fL https://packages.geldata.com/rpm/gel-rhel.repo \
+    >/etc/yum.repos.d/gel.repo
 
 if [ "${VERSION_ID}" = "7" ]; then
     # EPEL needed for jq on CentOS 7
@@ -24,12 +24,21 @@ fi
 try=1
 while [ $try -le 30 ]; do
     yum makecache \
-    && yum install --enablerepo=edgedb,edgedb-nightly --verbose -y edgedb-cli jq \
+    && yum install --enablerepo=gel,gel-nightly --verbose -y gel-cli jq \
     && break || true
     try=$(( $try + 1 ))
     echo "Retrying in 10 seconds (try #${try})"
     sleep 10
 done
+
+if ! type gel >/dev/null; then
+    echo "could not install gel-cli" >&2
+    exit $s
+fi
+
+if ! type edgedb; then
+    ln -s gel /usr/bin/edgedb
+fi
 
 slot=
 rpm=

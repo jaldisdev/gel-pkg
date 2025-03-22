@@ -26,28 +26,32 @@ apt-get install -y curl gnupg apt-transport-https jq\n\
 \n\
 mkdir -p /usr/local/share/keyrings\n\
 curl --proto '\''=https'\'' --tlsv1.2 -sSf \\\n\
-    -o /usr/local/share/keyrings/edgedb-keyring.gpg \\\n\
-    https://packages.edgedb.com/keys/edgedb-keyring.gpg\n\
-echo deb [signed-by=/usr/local/share/keyrings/edgedb-keyring.gpg] \\\n\
-    https://packages.edgedb.com/apt "${dist}" main \\\n\
-    > "/etc/apt/sources.list.d/edgedb.list"\n\
+    -o /usr/local/share/keyrings/gel-keyring.gpg \\\n\
+    https://packages.geldata.com/keys/gel-keyring.gpg\n\
+echo deb [signed-by=/usr/local/share/keyrings/gel-keyring.gpg] \\\n\
+    https://packages.geldata.com/apt "${dist}" main \\\n\
+    > "/etc/apt/sources.list.d/gel.list"\n\
 if [ -n "${PKG_SUBDIST}" ]; then\n\
-    echo deb [signed-by=/usr/local/share/keyrings/edgedb-keyring.gpg] \\\n\
-        https://packages.edgedb.com/apt "${dist}" "${PKG_SUBDIST}" \\\n\
-        > "/etc/apt/sources.list.d/edgedb-${PKG_SUBDIST}.list"\n\
+    echo deb [signed-by=/usr/local/share/keyrings/gel-keyring.gpg] \\\n\
+        https://packages.geldata.com/apt "${dist}" "${PKG_SUBDIST}" \\\n\
+        > "/etc/apt/sources.list.d/gel-${PKG_SUBDIST}.list"\n\
 fi\n\
 \n\
 try=1\n\
 while [ $try -le 30 ]; do\n\
-    apt-get update && apt-get install -y edgedb-cli && break || true\n\
+    apt-get update && apt-get install -y gel-cli && break || true\n\
     try=$(( $try + 1 ))\n\
     echo "Retrying in 10 seconds (try #${try})" >&2\n\
     sleep 10\n\
 done\n\
 \n\
-if ! type edgedb >/dev/null; then\n\
-    echo "could not install edgedb-cli" >&2\n\
+if ! type gel >/dev/null; then\n\
+    echo "could not install gel-cli" >&2\n\
     exit $s\n\
+fi\n\
+\n\
+if ! type edgedb; then\n\
+    ln -s gel /usr/bin/edgedb\n\
 fi\n\
 \n\
 slot=\n\
