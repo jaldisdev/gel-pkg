@@ -813,7 +813,7 @@ def process_generic(
                         "Redirect": {
                             "HttpRedirectCode": "307",
                             "Protocol": "https",
-                            "HostName": "packages.edgedb.com",
+                            "HostName": "packages.geldata.com",
                             "ReplaceKeyPrefixWith": tgt_key,
                         },
                     }
