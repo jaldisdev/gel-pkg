@@ -38,3 +38,7 @@ codename = "focal"
 [[apt.distributions]]
 name = "Ubuntu 22.04"
 codename = "jammy"
+
+[[apt.distributions]]
+name = "Ubuntu 24.04"
+codename = "noble"
