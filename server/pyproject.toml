@@ -1,8 +1,8 @@
 [project]
 name = "process_incoming"
 description = "Universal package processor"
-authors = [{ name = "EdgeDB Inc", email = "hello@magic.io" }]
-requires-python = '>=3.8.0'
+authors = [{ name = "Gel Data Inc", email = "hello@geldata.com" }]
+requires-python = ">=3.12"
 readme = "README.rst"
 version = "1.0.0"
 dependencies = [
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.urls]
-github = "https://github.com/edgedb/edgedb-pkg/"
+github = "https://github.com/geldata/gel-pkg/"
 
 [project.scripts]
 process_incoming = "process_incoming:main"
@@ -31,11 +31,38 @@ py-modules = ["process_incoming"]
 
 [tool.black]
 line-length = 79
-target-version = ["py39"]
+target-version = ["py312"]
 
 [tool.mypy]
 files = "process_incoming.py"
-python_version = "3.9"
+python_version = "3.12"
 ignore_missing_imports = true
 show_error_codes = true
 strict = true
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+preview = true
+extend-select = [
+    "ASYNC", # flake8-async
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "COM",   # flake8-commas
+    "DTZ",   # flake8-datetimez
+    "E",     # error
+    "ERA",   # flake8-eradicate
+    "F",     # pyflakes
+    "FBT",   # flake8-boolean-trap
+    "N",     # pep8-naming
+    "PGH",   # pygrep-hooks
+    "PIE",   # flake8-pie
+    "RUF",   # ruff specific
+    "SIM",   # flake8-simplify
+    "T20",   # flake8-print
+    "UP",    # pyupgrade
+    "W",     # warning
+]

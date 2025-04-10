@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from typing import Any, ContextManager, cast, List, Optional
+from typing import Any, cast
 from typing_extensions import TypedDict
 
 import contextlib
@@ -14,7 +14,6 @@ import os
 import logging
 import mimetypes
 import pathlib
-import pprint
 import re
 import shutil
 import subprocess
@@ -120,7 +119,7 @@ version_regexp = re.compile(
 
 
 def subprocess_run(
-    *args: Any, **kwargs: Any
+    *args: Any, **kwargs: Any,
 ) -> subprocess.CompletedProcess[str]:
     kw = dict(kwargs)
     if kw.get("stdout") is None and not kw.get("capture_output"):
@@ -149,7 +148,7 @@ def parse_version(ver: str) -> Version:
         prerelease.append({"phase": pre_kind, "number": int(v.group("pre_n"))})
         if v.group("dev"):
             prerelease.append(
-                {"phase": "dev", "number": int(v.group("dev_n"))}
+                {"phase": "dev", "number": int(v.group("dev_n"))},
             )
 
     elif v.group("dev"):
@@ -215,7 +214,7 @@ PackageIndex = dict[tuple[str, str, str], Package]
 def gpg_detach_sign(path: pathlib.Path) -> pathlib.Path:
     logger.info("gpg_detach_sign: %s", path)
     proc = subprocess_run(
-        ["gpg", "--yes", "--batch", "--detach-sign", "--armor", str(path)]
+        ["gpg", "--yes", "--batch", "--detach-sign", "--armor", str(path)],
     )
     proc.check_returncode()
     asc_path = path.with_suffix(path.suffix + ".asc")
@@ -226,10 +225,10 @@ def gpg_detach_sign(path: pathlib.Path) -> pathlib.Path:
 def sha256(path: pathlib.Path) -> pathlib.Path:
     logger.info("sha256: %s", path)
     with open(path, "rb") as bf:
-        _hash = hashlib.sha256(bf.read())
+        hash = hashlib.sha256(bf.read())
     out_path = path.with_suffix(path.suffix + ".sha256")
     with open(out_path, "w") as f:
-        f.write(_hash.hexdigest())
+        f.write(hash.hexdigest())
         f.write("\n")
     return out_path
 
@@ -237,10 +236,10 @@ def sha256(path: pathlib.Path) -> pathlib.Path:
 def blake2b(path: pathlib.Path) -> pathlib.Path:
     logger.info("blake2b: %s", path)
     with open(path, "rb") as bf:
-        _hash = hashlib.blake2b(bf.read())
+        hash = hashlib.blake2b(bf.read())
     out_path = path.with_suffix(path.suffix + ".blake2b")
     with open(out_path, "w") as f:
-        f.write(_hash.hexdigest())
+        f.write(hash.hexdigest())
         f.write("\n")
     return out_path
 
@@ -297,11 +296,7 @@ def remove_old(
             .get("metadata", {})
             .get("catalog_version")
         )
-        if catver:
-            key = f"{key}-{catver}"
-        else:
-            key = f"{key}-{verslot}"
-
+        key = f"{key}-{catver}" if catver else f"{key}-{verslot}"
         key += f"-{metadata['architecture']}"
 
         ver_details = metadata["version_details"]
@@ -319,7 +314,7 @@ def remove_old(
             build_date = datetime.datetime.fromisoformat(build_date_str)
         else:
             build_date = datetime.datetime.fromtimestamp(
-                0, tz=datetime.timezone.utc
+                0, tz=datetime.UTC,
             )
         ver_key = (version, build_date)
         index.setdefault(key, {}).setdefault(ver_key, []).append(obj.key)
@@ -360,14 +355,14 @@ def describe_installref(
 
 def is_metadata_object(key: str) -> bool:
     return key.endswith(
-        (".sha256", ".blake2b", ".asc", ".metadata.json", "index.html")
+        (".sha256", ".blake2b", ".asc", ".metadata.json", "index.html"),
     )
 
 
 def get_metadata(bucket: s3.Bucket, key: str) -> dict[str, Any]:
     logger.info("read: %s", f"{key}.metadata.json")
     data = read(bucket, f"{key}.metadata.json")
-    return json.loads(data.decode("utf-8"))  # type: ignore
+    return json.loads(data.decode("utf-8"))  # type: ignore [no-any-return]
 
 
 def append_artifact(
@@ -420,7 +415,7 @@ def append_artifact(
 def load_index(idxfile: pathlib.Path) -> PackageIndex:
     index: PackageIndex = {}
     if idxfile.exists():
-        with open(idxfile, "r") as f:
+        with open(idxfile) as f:
             data = json.load(f)
             if isinstance(data, dict) and (pkglist := data.get("packages")):
                 for pkg in pkglist:
@@ -431,7 +426,7 @@ def load_index(idxfile: pathlib.Path) -> PackageIndex:
                     )
                     if "tags" not in pkg:
                         pkg["tags"] = {}
-                    index[index_key] = Package(**pkg)  # type: ignore
+                    index[index_key] = Package(**pkg)  # type: ignore [typeddict-item]
 
     return index
 
@@ -475,10 +470,10 @@ def put(
     cache: bool = False,
     content_type: str = "",
 ) -> s3.Object:
-    ctx: ContextManager[Any]
+    ctx: contextlib.AbstractContextManager[Any]
 
     if isinstance(source, pathlib.Path):
-        ctx = open(source, "rb")
+        ctx = open(source, "rb")  # noqa: SIM115
         name = name or source.name
     elif not name:
         raise ValueError(f"Name not given for target {target}")
@@ -567,7 +562,7 @@ def sync_to_s3(
 @click.argument("upload_listing")  # a single file with a listing of many files
 def main(
     config: str,
-    bucket: Optional[str],
+    bucket: str | None,
     incoming_dir: str,
     local_dir: str,
     upload_listing: str,
@@ -590,8 +585,8 @@ def main(
     region = os.environ.get("AWS_REGION", "us-east-2")
     session = boto3.session.Session(region_name=region)
     s3: mypy_boto3_s3.S3ServiceResource = session.resource(
-        "s3"
-    )  # pyright: ignore
+        "s3",
+    )  # pyright: ignore [reportAssignmentType]
 
     for path_str in uploads:
         path = pathlib.Path(path_str)
@@ -639,8 +634,9 @@ def main(
                         bucket = cfg["common"]["buckets"].get(target_bucket)
                         if bucket is None:
                             raise RuntimeError(
-                                f"invalid target bucket in metadata: {target_bucket!r}"
-                                f", configure it in genrepo.toml"
+                                "invalid target bucket in metadata: "
+                                f"{target_bucket!r}, configure it in "
+                                "genrepo.toml",
                             )
 
                         if repository == "generic":
@@ -676,10 +672,8 @@ def main(
 
             logger.info("Successfully processed: %s", path)
         finally:
-            try:
+            with contextlib.suppress(PermissionError):
                 os.unlink(path)
-            except PermissionError:
-                pass
 
 
 def process_generic(
@@ -712,7 +706,7 @@ def process_generic(
             continue
 
         leaf = pathlib.Path(member.name)
-        tf.extract(member, staging_dir)
+        tf.extract(member, staging_dir, filter="data")
 
         desc = contents[member.name]
         ext = desc["suffix"]
@@ -816,7 +810,7 @@ def process_generic(
                             "HostName": "packages.geldata.com",
                             "ReplaceKeyPrefixWith": tgt_key,
                         },
-                    }
+                    },
                 )
 
         website_config: s3types.WebsiteConfigurationTypeDef = {
@@ -835,7 +829,6 @@ def process_generic(
             )
 
         logger.info("updating bucket website config:")
-        pprint.pprint(website_config, stream=sys.stderr)
         website.put(WebsiteConfiguration=website_config)
 
 
@@ -855,8 +848,8 @@ def generate_reprepro_distributions(
                 Components: {" ".join(cfg["apt"]["components"])}
                 Description: EdgeDB Package Repository for {dist["name"]}
                 SignWith: {cfg["common"]["signing_key"]}
-                """
-            )
+                """,
+            ),
         )
 
     return "\n".join(dists)
@@ -886,20 +879,20 @@ def process_apt(
     index_dir = local_apt_dir / ".jsonindexes"
     index_dir.mkdir(exist_ok=True)
 
-    with open(reprepro_conf / "incoming", "wt") as f:
+    with open(reprepro_conf / "incoming", "w") as f:
         dists = " ".join(d["codename"] for d in cfg["apt"]["distributions"])
         incoming = textwrap.dedent(
             f"""\
             Name: default
-            IncomingDir: {str(incoming_dir)}
-            TempDir: {str(reprepro_tmp)}
+            IncomingDir: {incoming_dir!s}
+            TempDir: {reprepro_tmp!s}
             Allow: {dists}
             Permit: older_version
-            """
+            """,
         )
         f.write(incoming)
 
-    with open(reprepro_conf / "distributions", "wt") as f:
+    with open(reprepro_conf / "distributions", "w") as f:
         distributions = generate_reprepro_distributions(cfg)
         f.write(distributions)
 
@@ -934,9 +927,9 @@ def process_apt(
             "reprepro",
             "-V",
             "-V",
-            f"--confdir={str(reprepro_conf)}",
-            f"--basedir={str(local_apt_dir)}",
-            f"--logdir={str(reprepro_logs)}",
+            f"--confdir={reprepro_conf!s}",
+            f"--basedir={local_apt_dir!s}",
+            f"--logdir={reprepro_logs!s}",
             "processincoming",
             "default",
             str(changes),
@@ -948,9 +941,9 @@ def process_apt(
     result = subprocess_run(
         [
             "reprepro",
-            f"--confdir={str(reprepro_conf)}",
-            f"--basedir={str(local_apt_dir)}",
-            f"--logdir={str(reprepro_logs)}",
+            f"--confdir={reprepro_conf!s}",
+            f"--basedir={local_apt_dir!s}",
+            f"--logdir={reprepro_logs!s}",
             "dumpreferences",
         ],
         text=True,
@@ -977,7 +970,7 @@ def process_apt(
                 r"${$fullfilename}",
                 r"${Installed-Size}",
                 r"${Metapkg-Metadata}",
-            )
+            ),
         )
         + r"\n"
     )
@@ -989,9 +982,9 @@ def process_apt(
         result = subprocess_run(
             [
                 "reprepro",
-                f"--confdir={str(reprepro_conf)}",
-                f"--basedir={str(local_apt_dir)}",
-                f"--logdir={str(reprepro_logs)}",
+                f"--confdir={reprepro_conf!s}",
+                f"--basedir={local_apt_dir!s}",
+                f"--logdir={reprepro_logs!s}",
                 f"--list-format={list_format}",
                 "list",
                 dist,
@@ -1071,7 +1064,7 @@ def process_apt(
                 dist_packages[index_key]["architecture"] = arch
             else:
                 if basename == "edgedb-server" and not ver_metadata.get(
-                    "catalog_version"
+                    "catalog_version",
                 ):
                     if not pathlib.Path(pkgfile).exists():
                         logger.error(f"package file does not exist: {pkgfile}")
@@ -1079,16 +1072,16 @@ def process_apt(
                         catver = extract_catver_from_deb(pkgfile)
                         if catver is None:
                             logger.error(
-                                f"cannot extract catalog version from {pkgfile}"
+                                f"cannot extract catver from {pkgfile}",
                             )
                         else:
                             ver_metadata["catalog_version"] = str(catver)
                             logger.info(
-                                f"extracted catver {catver} from {pkgfile}"
+                                f"extracted catver {catver} from {pkgfile}",
                             )
 
                 installref = InstallRef(
-                    ref="{}={}-{}".format(pkgname, relver, revver),
+                    ref=f"{pkgname}={relver}-{revver}",
                     type=None,
                     encoding=None,
                     verification={},
@@ -1253,8 +1246,8 @@ def process_rpm(
     )
 
     lines_seen = 0
-    lines: List[str] = []
-    package: Optional[str] = None
+    lines: list[str] = []
+    package: str | None = None
     metadatas = {}
 
     for line in changelogs.stdout.splitlines():
@@ -1310,7 +1303,7 @@ def process_rpm(
 
         m = slot_regexp.match(pkgname)
         if not m:
-            logger.info("cannot parse package name: {}".format(pkgname))
+            logger.info(f"cannot parse package name: {pkgname}")
             basename = pkgname
             slot = None
         else:
@@ -1331,7 +1324,7 @@ def process_rpm(
             pkgmetadata["name"] = basename
 
         version_key = format_version_key(
-            pkgmetadata["version_details"], pkgmetadata["revision"]
+            pkgmetadata["version_details"], pkgmetadata["revision"],
         )
 
         slot_name = pkgmetadata["name"]
@@ -1344,7 +1337,7 @@ def process_rpm(
                 pkgmetadata["name"],
                 nevra,
                 pkgmetadata["architecture"],
-            )
+            ),
         )
 
         installref = InstallRef(
@@ -1360,14 +1353,12 @@ def process_rpm(
     if channel == "nightly":
         logger.info("process_rpm: collecting garbage")
         comp = functools.cmp_to_key(debian_support.version_compare)
-        for slot_name, versions in slot_index.items():
-            sorted_versions = list(
-                sorted(
+        for _slot_name, versions in slot_index.items():
+            sorted_versions = sorted(
                     versions,
                     key=lambda v: comp(v[0]),
                     reverse=True,
                 )
-            )
 
             for ver_key, name, ver_nevra, arch in sorted_versions[3:]:
                 logger.info(f"process_rpm: deleting outdated {ver_nevra}")
