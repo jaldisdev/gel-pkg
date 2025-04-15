@@ -14,6 +14,7 @@ jobs:
     permissions: {}
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      merge_matrix: ${{ steps.set-matrix.outputs.merge_matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,18 +33,66 @@ jobs:
               stage: $parts[0],
               platform: ($parts[1] | split("-")[0]),
               platform_version: ($parts[1] | split("-")[1] // ""),
-            }' | jq -s .)
+            } |
+            if (.platform_version | test("^(x86_64|aarch64)$")) then
+              [{
+                stage: .stage,
+                platform: .platform,
+                platform_version: .platform_version,
+                build_on: (
+                  if .platform_version == "x86_64" then "ubuntu-latest"
+                  elif .platform_version == "aarch64" then "ubuntu-24.04-arm"
+                  else "unrecognized" end
+                ),
+                docker_platform: (
+                  if .platform_version == "x86_64" then "amd64"
+                  elif .platform_version == "aarch64" then "arm64"
+                  else "unrecognized" end
+                )
+              }]
+            else
+              [
+                {
+                  stage: .stage,
+                  platform: .platform,
+                  platform_version: .platform_version,
+                  build_on: "ubuntu-latest",
+                  docker_platform: "amd64"
+                },
+                {
+                  stage: .stage,
+                  platform: .platform,
+                  platform_version: .platform_version,
+                  build_on: "ubuntu-24.04-arm",
+                  docker_platform: "arm64"
+                }
+              ]
+            end' | jq -s 'add')
 
           echo "matrix=$(echo "$MATRIX" | jq -c .)" >> $GITHUB_OUTPUT
+          echo "merge_matrix=$(echo "$MATRIX" | jq -c '
+            group_by({stage, platform, platform_version}) |
+            map({
+              stage: .[0].stage,
+              platform: .[0].platform,
+              platform_version: .[0].platform_version,
+            })
+          ')" >> $GITHUB_OUTPUT
 
-  image:
+  build:
     needs: generate-matrix
-    runs-on: ubuntu-latest
     permissions:
       packages: write
     strategy:
       matrix:
         include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    runs-on: ${{ matrix.build_on }}
+    env:
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}
+      SPV: ${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}
+      SPVA: ${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}-${{ matrix.docker_platform }}
+    outputs:
+      date: ${{ steps.meta.outputs.date }}
 
     steps:
       - name: Checkout
@@ -51,24 +100,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Determine Architectures
-        id: arch
-        run: |
-          CONTAINER="${{ matrix.platform }}-${{ matrix.platform_version }}"
-          if [[ "$CONTAINER" == *aarch64* ]]; then
-            echo "archs=linux/arm64" >> $GITHUB_OUTPUT
-          elif [[ "$CONTAINER" == *x86_64* ]]; then
-            echo "archs=linux/amd64" >> $GITHUB_OUTPUT
-          else
-            echo "archs=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set build date
         id: meta
         run: echo "date=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # 3.6.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # 3.10.0
@@ -82,18 +116,76 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Image
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # 6.15.0
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
         with:
           context: integration/linux/${{ matrix.stage }}/${{ matrix.platform }}-${{ matrix.platform_version }}
-          push: true
-          platforms: ${{ steps.arch.outputs.archs }}
+          platforms: linux/${{ matrix.docker_platform }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}:latest
-            ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}:${{ steps.meta.outputs.date }}
+            ${{ env.REGISTRY_IMAGE }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ steps.meta.outputs.date }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}:cache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}:cache
+          cache-from: type=registry,ref=${{ env.REGISTRY_IMAGE }}:cache-${{ matrix.docker_platform }}
+          cache-to: type=registry,ref=${{ env.REGISTRY_IMAGE }}:cache-${{ matrix.docker_platform }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          path="${{ runner.temp }}/digests/${{ env.SPV }}"
+          digest="${{ steps.build.outputs.digest }}"
+          mkdir -p "$path"
+          touch "${path}/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.SPVA }}
+          path: ${{ runner.temp }}/digests/${{ env.SPV }}/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.merge_matrix) }}
+    env:
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/gelpkg-${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}
+      SPV: ${{ matrix.stage }}-${{ matrix.platform }}-${{ matrix.platform_version }}
+    needs:
+      - generate-matrix
+      - build
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # 3.10.0
+        with:
+          cache-binary: false
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests/${{ env.SPV }}
+          pattern: digests-${{ env.SPV }}-*
+          merge-multiple: true
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests/${{ env.SPV }}
+        run: |
+          ls -al
+          printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY_IMAGE }}:latest \
+            --tag ${{ env.REGISTRY_IMAGE }}:${{ needs.build.outputs.date }} \
+            $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
