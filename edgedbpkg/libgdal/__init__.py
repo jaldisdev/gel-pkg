@@ -62,7 +62,7 @@ class LibGDAL(packages.BundledCMakePackage):
     bundle_deps = [
         libexpat.LibExpat("2.6.3"),
         libgeos.LibGEOS("3.13.0"),
-        libjson_c.LibJsonC("0.17"),
+        libjson_c.LibJsonC("0.18"),
         libpcre2.LibPCRE2("10.44"),
         libxml2.LibXML2("2.13.4"),
         libgeotiff.LibGeoTIFF("1.7.3"),

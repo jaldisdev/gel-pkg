@@ -55,7 +55,7 @@ class PostGIS(pgext.PostgresCExtension):
     bundle_deps = [
         libgdal.LibGDAL("3.8.5"),
         libgeos.LibGEOS("3.13.0"),
-        libjson_c.LibJsonC("0.17"),
+        libjson_c.LibJsonC("0.18"),
         libpcre2.LibPCRE2("10.44"),
         libproj.LibProj("9.5.0"),
         libprotobuf_c.LibProtoBufC("1.5.0"),
