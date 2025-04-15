@@ -1,22 +1,25 @@
-ARG DOCKER_ARCH=
+ARG DOCKER_ARCH
 FROM ${DOCKER_ARCH}centos:7
+
+%%ARGS%%
 
 ENTRYPOINT ["/bin/sh", "--login", "-c", "/entrypoint.sh"]
 
-ENV LANG C
-
-ENV PATH /usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-ENV RUSTUP_HOME /usr/local/rustup
-ENV CARGO_HOME /usr/local/cargo
+%%ENV%%
+%%IFNOT VARIANT=aarch64%%
+ENV LANG=C
+%%ENDIF%%
 
 %%IF VARIANT=aarch64%%
-ENV GCC_VERSION 10
+ENV GCC_VERSION=10
 %%ENDIF%%
 
 %%IFNOT VARIANT=aarch64%%
-ENV GCC_VERSION 11
+ENV GCC_VERSION=11
 %%ENDIF%%
+
+ENV OPENSSL_VERSION=1.1.1w
+ENV PYTHON_LOCAL_OPENSSL=1
 
 # rpm on centos 7 iterates over all fds up to the limit, which is
 # extremely slow. Force it to be small with ulimit.
@@ -74,15 +77,13 @@ RUN localedef -f UTF-8 -i en_US en_US.UTF-8
 # Needed to pick up SCL stuff from profile.d/
 SHELL ["/bin/bash", "--login", "-c"]
 
-# wget option defaults for bootstrap
-ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
-
 %%SCRIPTS%%
 
-ENV OPENSSL_VERSION 1.1.1w
-ENV PYTHON_LOCAL_OPENSSL 1
-
-RUN set -ex \
+RUN %%MOUNTS%% \
+    set -ex \
+	&& /_bootstrap/rust.sh \
+	&& /_bootstrap/sccache.sh \
+	&& eval $(/_bootstrap/setup-sccache.sh) \
 	&& /_bootstrap/openssl.sh \
 	&& /_bootstrap/python.sh \
 	&& /_bootstrap/git.sh \
@@ -90,10 +91,10 @@ RUN set -ex \
 	&& /_bootstrap/gzip.sh \
 	&& /_bootstrap/tar.sh \
 	&& /_bootstrap/pkgconf.sh \
-	&& /_bootstrap/rust.sh \
 	&& /_bootstrap/node.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
 	&& /_bootstrap/meson.sh \
 	&& /_bootstrap/ninja.sh \
-	&& /_bootstrap/cmake.sh
+	&& /_bootstrap/cmake.sh \
+	&& sccache --show-stats

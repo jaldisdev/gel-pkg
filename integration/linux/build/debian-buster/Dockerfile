@@ -4,17 +4,26 @@
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
 
-ARG DOCKER_ARCH=
+ARG DOCKER_ARCH
 FROM ${DOCKER_ARCH}buildpack-deps:buster
+
+ARG SCCACHE_GHA_ENABLED=off
+ARG ACTIONS_CACHE_SERVICE_V2
+
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-ENV LANG C.UTF-8
-
-ENV PATH /usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
+ENV LANG=C.UTF-8
+ENV PATH=/usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-ENV RUSTUP_HOME /usr/local/rustup
-ENV CARGO_HOME /usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
+ENV SCCACHE="/usr/local/bin/sccache"
+ENV SCCACHE_LINKS="/usr/local/lib/sccache/bin"
+ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
+ENV ACTIONS_CACHE_SERVICE_V2=$ACTIONS_CACHE_SERVICE_V2
+
 
 RUN apt-get update \
 	&& apt-get dist-upgrade -y \
@@ -31,9 +40,6 @@ RUN apt-get update \
 		zip \
 		zstd \
 	&& rm -rf /var/lib/apt/lists/*
-
-# wget option defaults for bootstrap
-ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
 
 RUN mkdir -p '_bootstrap'; /bin/echo -e 'function fetch_keys() {\n\
     for key in "${@}"; do\n\
@@ -439,7 +445,13 @@ if [ -n "$PYTHON_LOCAL_OPENSSL" ]; then\n\
     )\n\
 fi\n\
 \n\
-./configure "${config_args[@]}"\n\
+if ! ./configure "${config_args[@]}"; then\n\
+    echo "config.log:" >&2\n\
+    echo "===========" >&2\n\
+    cat config.log >&2\n\
+    echo configure error >&2\n\
+    exit 1\n\
+fi\n\
 make -j "$(nproc)"\n\
 make install\n\
 \n\
@@ -477,7 +489,6 @@ set -ex\n\
 \n\
 : ${RUST_VERSION:=1.85.0}\n\
 \n\
-cd /usr/src\n\
 curl --proto '\''=https'\'' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- \\\n\
     -y --no-modify-path --profile default \\\n\
     --default-toolchain "$RUST_VERSION"\n\
@@ -487,6 +498,79 @@ chmod -R a+w "$RUSTUP_HOME" "$CARGO_HOME"\n\
 # Make everything use it.\n\
 toolchain="$(rustup show active-toolchain | cut -f1 -d'\'' '\'')"\n\
 echo export RUSTUP_TOOLCHAIN="$toolchain" > /etc/profile.d/99-rustup-toolchain-override.sh\n\' >/_bootstrap/rust.sh; chmod +x /_bootstrap/rust.sh
+RUN mkdir -p '_bootstrap'; /bin/echo -e '#!/usr/bin/env bash\n\
+\n\
+set -ex\n\
+\n\
+: ${SCCACHE_VERSION:=0.10.0}\n\
+\n\
+source "${BASH_SOURCE%/*}/_helpers.sh"\n\
+\n\
+SCCACHE_ARCH=\n\
+\n\
+case "$(arch)" in\n\
+x86_64)\n\
+    SCCACHE_ARCH='\''x86_64'\''\n\
+    ;;\n\
+arm64)\n\
+    SCCACHE_ARCH='\''aarch64'\''\n\
+    ;;\n\
+aarch64)\n\
+    SCCACHE_ARCH='\''aarch64'\''\n\
+    ;;\n\
+esac\n\
+\n\
+mkdir -p /usr/src/sccache\n\
+cd /usr/src\n\
+\n\
+_server="https://github.com/mozilla/sccache/releases/download/v${SCCACHE_VERSION}"\n\
+\n\
+if [ -n "${SCCACHE_ARCH}" ]; then\n\
+    _artifact="sccache-v${SCCACHE_VERSION}-${SCCACHE_ARCH}-unknown-linux-musl.tar.gz"\n\
+    $WGET -O sccache.tar.gz "${_server}/${_artifact}"\n\
+    $WGET -O sccache.tar.gz.sha256 "${_server}/${_artifact}.sha256"\n\
+\n\
+    echo "$(cat sccache.tar.gz.sha256) sccache.tar.gz" | sha256sum --check --status -\n\
+\n\
+    mkdir -p "sccache"\n\
+    tar -xzf "sccache.tar.gz" -C "sccache" --strip-components=1 --no-same-owner\n\
+    mv sccache/sccache /usr/local/bin/\n\
+    rm -f "sccache.tar.gz"\n\
+    rm -f "sccache.tar.gz.sha256"\n\
+    rm -rf "sccache"\n\
+else\n\
+    cargo install "sccache@${SCCACHE_VERSION}" --no-default-features --festures=gha --locked --root="/usr/local"\n\
+fi\n\
+\n\
+mkdir -p "$SCCACHE_LINKS"\n\
+cd "$SCCACHE_LINKS"\n\
+\n\
+ln "$SCCACHE" c++\n\
+ln "$SCCACHE" c99\n\
+ln "$SCCACHE" cc\n\
+if type clang >/dev/null; then\n\
+    ln "$SCCACHE" clang\n\
+    ln "$SCCACHE" clang++\n\
+    clang_mach=$(clang -dumpmachine)\n\
+    ln "$SCCACHE" ${clang_mach}-clang\n\
+    ln "$SCCACHE" ${clang_mach}-clang++\n\
+fi\n\
+if type gcc >/dev/null; then\n\
+    ln "$SCCACHE" gcc\n\
+    ln "$SCCACHE" g++\n\
+    gcc_mach=$(gcc -dumpmachine)\n\
+    ln "$SCCACHE" ${gcc_mach}-gcc\n\
+    ln "$SCCACHE" ${gcc_mach}-g++\n\
+fi\n\
+\n\
+sccache --show-stats\n\
+du -sh "$HOME/.cache/sccache"\n\' >/_bootstrap/sccache.sh; chmod +x /_bootstrap/sccache.sh
+RUN mkdir -p '_bootstrap'; /bin/echo -e '#!/usr/bin/env bash\n\
+\n\
+echo "export PATH=${SCCACHE_LINKS}:"'\''$PATH'\''\n\
+echo "export RUSTC_WRAPPER=${SCCACHE}"\n\
+echo "export ACTIONS_RESULTS_URL=$(cat /run/secrets/ACTIONS_RESULTS_URL)"\n\
+echo "export ACTIONS_RUNTIME_TOKEN=$(cat /run/secrets/ACTIONS_RUNTIME_TOKEN)"\n\' >/_bootstrap/setup-sccache.sh; chmod +x /_bootstrap/setup-sccache.sh
 RUN mkdir -p '_bootstrap'; /bin/echo -e '#!/usr/bin/env bash\n\
 \n\
 set -ex\n\
@@ -658,14 +742,21 @@ else\n\
 fi\n\' >/entrypoint.sh; chmod +x /entrypoint.sh
 
 
-RUN set -ex \
-	&& /_bootstrap/python.sh \
+RUN --mount=type=cache,target=/root/.cache/sccache \
+--mount=type=secret,id=ACTIONS_RESULTS_URL \
+--mount=type=secret,id=ACTIONS_RUNTIME_TOKEN \
+ \
+    set -ex \
 	&& /_bootstrap/rust.sh \
+	&& /_bootstrap/sccache.sh \
+	&& eval $(/_bootstrap/setup-sccache.sh) \
+	&& /_bootstrap/python.sh \
 	&& /_bootstrap/node.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
 	&& /_bootstrap/ninja.sh \
 	&& /_bootstrap/meson.sh \
-	&& /_bootstrap/cmake.sh
+	&& /_bootstrap/cmake.sh \
+	&& sccache --show-stats
 RUN rm -rf /_bootstrap
 RUN set -ex && cmake --version && gcc --version && git --version && go version && meson --version && ninja --version && node --version && npm --version && patchelf --version && pkg-config --version && python3 --version && rustc --version && tar --version && yarn --version

@@ -1,18 +1,18 @@
-ARG DOCKER_ARCH=
+ARG DOCKER_ARCH
 FROM ${DOCKER_ARCH}centos:%%PLACEHOLDER%%
+
+%%ARGS%%
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-ENV LANG C
-
-ENV PATH /usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-ENV RUSTUP_HOME /usr/local/rustup
-ENV CARGO_HOME /usr/local/cargo
+%%ENV%%
+%%IF VARIANT=7%%
+ENV LANG=C
+%%ENDIF%%
 
 %%IF VARIANT=7%%
-ENV OPENSSL_VERSION 1.1.1w
-ENV PYTHON_LOCAL_OPENSSL 1
+ENV OPENSSL_VERSION=1.1.1w
+ENV PYTHON_LOCAL_OPENSSL=1
 %%ENDIF%%
 
 # rpm on centos 7 iterates over all fds up to the limit, which is
@@ -64,12 +64,13 @@ RUN ulimit -n 1024 \
 RUN localedef -f UTF-8 -i en_US en_US.UTF-8
 %%ENDIF%%
 
-# wget option defaults for bootstrap
-ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
-
 %%SCRIPTS%%
 
-RUN set -ex \
+RUN %%MOUNTS%% \
+    set -ex \
+	&& /_bootstrap/rust.sh \
+	&& /_bootstrap/sccache.sh \
+	&& eval $(/_bootstrap/setup-sccache.sh) \
 %%IF VARIANT=7%%
 	&& /_bootstrap/openssl.sh \
 %%ENDIF%%
@@ -78,10 +79,10 @@ RUN set -ex \
 	&& /_bootstrap/patchelf.sh \
 	&& /_bootstrap/tar.sh \
 	&& /_bootstrap/pkgconf.sh \
-	&& /_bootstrap/rust.sh \
 	&& /_bootstrap/node.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
 	&& /_bootstrap/meson.sh \
 	&& /_bootstrap/ninja.sh \
-	&& /_bootstrap/cmake.sh
+	&& /_bootstrap/cmake.sh \
+	&& sccache --show-stats

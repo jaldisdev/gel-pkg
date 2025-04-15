@@ -45,7 +45,13 @@ if [ -n "$PYTHON_LOCAL_OPENSSL" ]; then
     )
 fi
 
-./configure "${config_args[@]}"
+if ! ./configure "${config_args[@]}"; then
+    echo "config.log:" >&2
+    echo "===========" >&2
+    cat config.log >&2
+    echo configure error >&2
+    exit 1
+fi
 make -j "$(nproc)"
 make install
 

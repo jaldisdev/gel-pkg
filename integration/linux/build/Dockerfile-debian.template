@@ -1,14 +1,11 @@
-ARG DOCKER_ARCH=
+ARG DOCKER_ARCH
 FROM ${DOCKER_ARCH}buildpack-deps:%%PLACEHOLDER%%
+
+%%ARGS%%
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-ENV LANG C.UTF-8
-
-ENV PATH /usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-ENV RUSTUP_HOME /usr/local/rustup
-ENV CARGO_HOME /usr/local/cargo
+%%ENV%%
 
 RUN apt-get update \
 	&& apt-get dist-upgrade -y \
@@ -26,17 +23,18 @@ RUN apt-get update \
 		zstd \
 	&& rm -rf /var/lib/apt/lists/*
 
-# wget option defaults for bootstrap
-ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
-
 %%SCRIPTS%%
 
-RUN set -ex \
-	&& /_bootstrap/python.sh \
+RUN %%MOUNTS%% \
+    set -ex \
 	&& /_bootstrap/rust.sh \
+	&& /_bootstrap/sccache.sh \
+	&& eval $(/_bootstrap/setup-sccache.sh) \
+	&& /_bootstrap/python.sh \
 	&& /_bootstrap/node.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
 	&& /_bootstrap/ninja.sh \
 	&& /_bootstrap/meson.sh \
-	&& /_bootstrap/cmake.sh
+	&& /_bootstrap/cmake.sh \
+	&& sccache --show-stats

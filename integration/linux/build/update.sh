@@ -74,7 +74,7 @@ tools=(
 )
 
 generated_warning() {
-	cat <<-EOH
+	cat <<-'EOH' | $SED -r 's/^ *//'
 		#
 		# NOTE: THIS DOCKERFILE IS GENERATED VIA "update.sh"
 		#
@@ -84,9 +84,45 @@ generated_warning() {
 	EOH
 }
 
+build_args() {
+    cat <<-'EOH' | $SED -r 's/^ *//'
+        ARG SCCACHE_GHA_ENABLED=off
+        ARG ACTIONS_CACHE_SERVICE_V2
+	EOH
+}
+
+common_env() {
+    cat <<-'EOH' | $SED -r 's/^ *//'
+        ENV LANG=C.UTF-8
+        ENV PATH=/usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
+        ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
+        ENV RUSTUP_HOME=/usr/local/rustup
+        ENV CARGO_HOME=/usr/local/cargo
+        ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
+        ENV SCCACHE="/usr/local/bin/sccache"
+        ENV SCCACHE_LINKS="/usr/local/lib/sccache/bin"
+        ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
+        ENV ACTIONS_CACHE_SERVICE_V2=$ACTIONS_CACHE_SERVICE_V2
+	EOH
+}
+
+mounts() {
+    cat <<-'EOH' | $SED -r 's/^ *//'
+        --mount=type=cache,target=/root/.cache/sccache \
+        --mount=type=secret,id=ACTIONS_RESULTS_URL \
+        --mount=type=secret,id=ACTIONS_RUNTIME_TOKEN \
+	EOH
+}
+
+build_args=$(mktemp /tmp/dockerfile-update.XXXXXX)
 scripts=$(mktemp /tmp/dockerfile-update.XXXXXX)
+env=$(mktemp /tmp/dockerfile-update.XXXXXX)
+mounts=$(mktemp /tmp/dockerfile-update.XXXXXX)
 function tmpfile_cleanup {
+  rm -f "$build_args" >&2
   rm -f "$scripts" >&2
+  rm -f "$env" >&2
+  rm -f "$mounts" >&2
 }
 trap tmpfile_cleanup EXIT
 
@@ -115,6 +151,14 @@ variant="$(dirname ${target})"
 variant="${variant#*-}"
 
 { generated_warning; cat "${template}"; } > "${target}"
+
+build_args > "$build_args"
+common_env > "$env"
+mounts > "$mounts"
+
+$AWK -i inplace '@load "readfile"; BEGIN{l = readfile("'"${build_args}"'")}/%%ARGS%%/{gsub("%%ARGS%%", l)}1' "${target}"
+$AWK -i inplace '@load "readfile"; BEGIN{l = readfile("'"${env}"'")}/%%ENV%%/{gsub("%%ENV%%", l)}1' "${target}"
+$AWK -i inplace '@load "readfile"; BEGIN{l = readfile("'"${mounts}"'")}/%%MOUNTS%%/{gsub("%%MOUNTS%%", l)}1' "${target}"
 
 $SED -ri \
 	-e '/%%IF VARIANT=.*'"${variant}"'.*%%/,/%%ENDIF%%/ { /%%IF VARIANT=/d; /%%ENDIF%%/d; }' \

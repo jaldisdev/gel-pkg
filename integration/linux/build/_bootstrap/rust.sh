@@ -4,7 +4,6 @@ set -ex
 
 : ${RUST_VERSION:=1.85.0}
 
-cd /usr/src
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- \
     -y --no-modify-path --profile default \
     --default-toolchain "$RUST_VERSION"

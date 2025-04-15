@@ -1,14 +1,11 @@
-ARG DOCKER_ARCH=
+ARG DOCKER_ARCH
 FROM ${DOCKER_ARCH}fedora:%%PLACEHOLDER%%
+
+%%ARGS%%
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-ENV LANG C.UTF-8
-
-ENV PATH /usr/local/bin:/usr/local/cargo/bin:/usr/local/go/bin:$PATH
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-ENV RUSTUP_HOME /usr/local/rustup
-ENV CARGO_HOME /usr/local/cargo
+%%ENV%%
 
 RUN echo precedence ::ffff:0:0/96 100 >> /etc/gai.conf \
 	&& dnf install -y \
@@ -53,17 +50,18 @@ RUN dnf install -y \
 		zlib-devel \
 		zstd
 
-# wget option defaults for bootstrap
-ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
-
 %%SCRIPTS%%
 
-RUN set -ex \
+RUN %%MOUNTS%% \
+    set -ex \
+	&& /_bootstrap/rust.sh \
+	&& /_bootstrap/sccache.sh \
+	&& eval $(/_bootstrap/setup-sccache.sh) \
 	&& /_bootstrap/python.sh \
 	&& /_bootstrap/pkgconf.sh \
 	&& /_bootstrap/patchelf.sh \
-	&& /_bootstrap/rust.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
 	&& /_bootstrap/meson.sh \
-	&& /_bootstrap/ninja.sh
+	&& /_bootstrap/ninja.sh \
+	&& sccache --show-stats
