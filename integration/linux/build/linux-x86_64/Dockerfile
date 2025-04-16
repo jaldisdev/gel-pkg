@@ -78,106 +78,6 @@ SHELL ["/bin/bash", "--login", "-c"]
 # wget option defaults for bootstrap
 ENV WGET="wget --no-verbose --secure-protocol=TLSv1_2 --continue"
 
-RUN mkdir -p '.'; /bin/echo -e '#!/bin/bash\n\
-\n\
-set -Exeo pipefail\n\
-\n\
-: "${CARGO_HOME:=$HOME/.cargo}"\n\
-: "${PYTHON:=python}"\n\
-\n\
-mkdir -p ~/.cache/cargo/{git,registry}\n\
-mkdir -p "$CARGO_HOME"\n\
-rm -rf "${CARGO_HOME}"/{git,registry}\n\
-ln -s ~/.cache/cargo/registry "${CARGO_HOME}/registry"\n\
-ln -s ~/.cache/cargo/git "${CARGO_HOME}/git"\n\
-\n\
-extraopts=\n\
-if [ -n "${SRC_REF}" ]; then\n\
-    extraopts+=" --source-ref=${SRC_REF}"\n\
-fi\n\
-\n\
-if [ -n "${BUILD_IS_RELEASE}" ]; then\n\
-    extraopts+=" --release"\n\
-fi\n\
-\n\
-if [ -n "${PKG_REVISION}" ]; then\n\
-    if [ "${PKG_REVISION}" = "<current-date>" ]; then\n\
-        PKG_REVISION="$(date --utc +%Y%m%d%H%M)"\n\
-    fi\n\
-    extraopts+=" --pkg-revision=${PKG_REVISION}"\n\
-fi\n\
-\n\
-if [ -n "${PKG_SUBDIST}" ]; then\n\
-    extraopts+=" --pkg-subdist=${PKG_SUBDIST}"\n\
-fi\n\
-\n\
-if [ -n "${PKG_TAGS}" ]; then\n\
-    extraopts+=" --pkg-tags=${PKG_TAGS}"\n\
-fi\n\
-\n\
-if [ -n "${PKG_COMPRESSION}" ]; then\n\
-    extraopts+=" --pkg-compression=${PKG_COMPRESSION}"\n\
-fi\n\
-\n\
-if [ -n "${EXTRA_OPTIMIZATIONS}" ]; then\n\
-    extraopts+=" --extra-optimizations"\n\
-fi\n\
-\n\
-if [ -n "${DEBUG_SYMBOLS}" ]; then\n\
-    extraopts+=" --build-debug"\n\
-fi\n\
-\n\
-if [ -n "${BUILD_GENERIC}" ]; then\n\
-    extraopts+=" --generic"\n\
-fi\n\
-\n\
-if [ -n "${PKG_BUILD_JOBS}" ]; then\n\
-    extraopts+=" --jobs=${PKG_BUILD_JOBS}"\n\
-fi\n\
-\n\
-dest="artifacts"\n\
-if [ -n "${PKG_PLATFORM}" ]; then\n\
-    dest+="/${PKG_PLATFORM}"\n\
-fi\n\
-if [ -n "${PKG_PLATFORM_LIBC}" ]; then\n\
-    dest+="${PKG_PLATFORM_LIBC}"\n\
-    extraopts+=" --libc=${PKG_PLATFORM_LIBC}"\n\
-fi\n\
-if [ -n "${PKG_PLATFORM_VERSION}" ]; then\n\
-    dest+="-${PKG_PLATFORM_VERSION}"\n\
-fi\n\
-if [ -n "${PKG_PLATFORM_ARCH}" ]; then\n\
-    extraopts+=" --arch=${PKG_PLATFORM_ARCH}"\n\
-fi\n\
-\n\
-if [ -z "${PACKAGE}" ]; then\n\
-    PACKAGE="edgedbpkg.edgedb:EdgeDB"\n\
-fi\n\
-\n\
-if [ -z "${VIRTUAL_ENV}"]; then\n\
-    mkdir -p "/var/lib/metapkg/venv"\n\
-    ${PYTHON} -m venv "/var/lib/metapkg/venv"\n\
-    source "/var/lib/metapkg/venv/bin/activate"\n\
-    PYTHON="python"\n\
-    ${PYTHON} -m pip install -U pip setuptools wheel\n\
-fi\n\
-\n\
-${PYTHON} -m pip install -U git+https://github.com/geldata/gel-pkg\n\
-\n\
-if [ -n "${METAPKG_PATH}" ]; then\n\
-    p=$(${PYTHON} -c '\''import metapkg;print(metapkg.__path__[0])'\'')\n\
-    rm -rf "${p}"\n\
-    ln -s "${METAPKG_PATH}" "${p}"\n\
-    ls -al "${p}"\n\
-fi\n\
-\n\
-if [ "$1" == "bash" ] || [ "${GET_SHELL}" == "true" ]; then\n\
-    echo ${PYTHON} -m metapkg build --dest="${dest}" ${extraopts} "${PACKAGE}"\n\
-    exec /bin/bash\n\
-else\n\
-    ${PYTHON} -m metapkg build -vvv --dest="${dest}" ${extraopts} "${PACKAGE}"\n\
-    ls -al "${dest}"\n\
-fi\n\' >/entrypoint.sh; chmod +x /entrypoint.sh
 RUN mkdir -p '_bootstrap'; /bin/echo -e 'function fetch_keys() {\n\
     for key in "${@}"; do\n\
         gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "$key" \\\n\
@@ -691,6 +591,114 @@ rm -f "yarn.tar.gz"\n\
 \n\
 ln -s /usr/src/yarn/bin/yarn /usr/local/bin/yarn\n\
 ln -s /usr/src/yarn/bin/yarnpkg /usr/local/bin/yarnpkg\n\' >/_bootstrap/yarn.sh; chmod +x /_bootstrap/yarn.sh
+RUN mkdir -p '.'; /bin/echo -e '#!/bin/bash\n\
+\n\
+set -Exeo pipefail\n\
+\n\
+: "${CARGO_HOME:=$HOME/.cargo}"\n\
+: "${PYTHON:=python}"\n\
+\n\
+mkdir -p ~/.cache/cargo/{git,registry}\n\
+mkdir -p "$CARGO_HOME"\n\
+rm -rf "${CARGO_HOME}"/{git,registry}\n\
+ln -s ~/.cache/cargo/registry "${CARGO_HOME}/registry"\n\
+ln -s ~/.cache/cargo/git "${CARGO_HOME}/git"\n\
+\n\
+extraopts=\n\
+if [ -n "${SRC_REF}" ]; then\n\
+    extraopts+=" --source-ref=${SRC_REF}"\n\
+fi\n\
+\n\
+if [ -n "${BUILD_IS_RELEASE}" ]; then\n\
+    extraopts+=" --release"\n\
+fi\n\
+\n\
+if [ -n "${PKG_REVISION}" ]; then\n\
+    if [ "${PKG_REVISION}" = "<current-date>" ]; then\n\
+        PKG_REVISION="$(date --utc +%Y%m%d%H%M)"\n\
+    fi\n\
+    extraopts+=" --pkg-revision=${PKG_REVISION}"\n\
+fi\n\
+\n\
+if [ -n "${PKG_SUBDIST}" ]; then\n\
+    extraopts+=" --pkg-subdist=${PKG_SUBDIST}"\n\
+fi\n\
+\n\
+if [ -n "${PKG_TAGS}" ]; then\n\
+    extraopts+=" --pkg-tags=${PKG_TAGS}"\n\
+fi\n\
+\n\
+if [ -n "${PKG_COMPRESSION}" ]; then\n\
+    extraopts+=" --pkg-compression=${PKG_COMPRESSION}"\n\
+fi\n\
+\n\
+if [ -n "${EXTRA_OPTIMIZATIONS}" ]; then\n\
+    extraopts+=" --extra-optimizations"\n\
+fi\n\
+\n\
+if [ -n "${DEBUG_SYMBOLS}" ]; then\n\
+    extraopts+=" --build-debug"\n\
+fi\n\
+\n\
+if [ -n "${BUILD_GENERIC}" ]; then\n\
+    extraopts+=" --generic"\n\
+fi\n\
+\n\
+if [ -n "${PKG_BUILD_JOBS}" ]; then\n\
+    extraopts+=" --jobs=${PKG_BUILD_JOBS}"\n\
+fi\n\
+\n\
+dest="artifacts"\n\
+if [ -n "${PKG_PLATFORM}" ]; then\n\
+    dest+="/${PKG_PLATFORM}"\n\
+fi\n\
+if [ -n "${PKG_PLATFORM_LIBC}" ]; then\n\
+    dest+="${PKG_PLATFORM_LIBC}"\n\
+    extraopts+=" --libc=${PKG_PLATFORM_LIBC}"\n\
+fi\n\
+if [ -n "${PKG_PLATFORM_VERSION}" ]; then\n\
+    dest+="-${PKG_PLATFORM_VERSION}"\n\
+fi\n\
+if [ -n "${PKG_PLATFORM_ARCH}" ]; then\n\
+    extraopts+=" --arch=${PKG_PLATFORM_ARCH}"\n\
+fi\n\
+\n\
+if [ -z "${PACKAGE}" ]; then\n\
+    PACKAGE="edgedbpkg.edgedb:EdgeDB"\n\
+fi\n\
+\n\
+if [ -z "${VIRTUAL_ENV}"]; then\n\
+    mkdir -p "/var/lib/metapkg/venv"\n\
+    ${PYTHON} -m venv "/var/lib/metapkg/venv"\n\
+    source "/var/lib/metapkg/venv/bin/activate"\n\
+    PYTHON="python"\n\
+    ${PYTHON} -m pip install -U pip setuptools wheel\n\
+fi\n\
+\n\
+gel_pkg_url="git+https://github.com/geldata/gel-pkg"\n\
+if [ -n "$GEL_PKG_REF" ]; then\n\
+    gel_pkg_url="${gel_pkg_url}@${GEL_PKG_REF}"\n\
+fi\n\
+${PYTHON} -m pip install --upgrade --upgrade-strategy=eager "$gel_pkg_url"\n\
+if [ -n "$METAPKG_REF" ]; then\n\
+    ${PYTHON} -m pip install --upgrade --upgrade-strategy=eager \\\n\
+        "git+https://github.com/geldata/metapkg@${METAPKG_REF}"\n\
+fi\n\
+\n\
+if [ -n "${METAPKG_PATH}" ]; then\n\
+    p=$(${PYTHON} -c '\''import metapkg;print(metapkg.__path__[0])'\'')\n\
+    rm -rf "${p}"\n\
+    ln -s "${METAPKG_PATH}" "${p}"\n\
+    ls -al "${p}"\n\
+fi\n\
+\n\
+if [ "$1" == "bash" ] || [ "${GET_SHELL}" == "true" ]; then\n\
+    echo ${PYTHON} -m metapkg build --dest="${dest}" ${extraopts} "${PACKAGE}"\n\
+    exec /bin/bash\n\
+else\n\
+    ${PYTHON} -m metapkg build -vvv --dest="${dest}" ${extraopts} "${PACKAGE}"\n\
+    ls -al "${dest}"\n\
+fi\n\' >/entrypoint.sh; chmod +x /entrypoint.sh
 
 
 ENV OPENSSL_VERSION 1.1.1w

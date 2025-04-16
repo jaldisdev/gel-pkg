@@ -125,11 +125,11 @@ $SED -ri \
 	-e 's!^(FROM (\$\{DOCKER_ARCH\}?\w+)):%%PLACEHOLDER%%!\1:'"${variant}"'!'\
 	"${target}"
 
-embed_script entrypoint.sh "$target"
-
 for bootstrap in $(ls _bootstrap/*.sh | sort); do
 	embed_script "$bootstrap" "$target"
 done
+
+embed_script entrypoint.sh "$target"
 
 $AWK -i inplace '@load "readfile"; BEGIN{l = readfile("'"${scripts}"'")}/%%SCRIPTS%%/{gsub("%%SCRIPTS%%", l)}1' "${target}"
 

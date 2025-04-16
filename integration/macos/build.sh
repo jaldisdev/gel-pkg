@@ -72,8 +72,15 @@ if [ -z "${VIRTUAL_ENV}"]; then
     ${PYTHON} -m pip install -U pip setuptools wheel
 fi
 
-${PYTHON} -m pip install --upgrade --upgrade-strategy=eager \
-    git+https://github.com/geldata/gel-pkg
+gel_pkg_url="git+https://github.com/geldata/gel-pkg"
+if [ -n "$GEL_PKG_REF" ]; then
+    gel_pkg_url="${gel_pkg_url}@${GEL_PKG_REF}"
+fi
+${PYTHON} -m pip install --upgrade --upgrade-strategy=eager "$gel_pkg_url"
+if [ -n "$METAPKG_REF" ]; then
+    ${PYTHON} -m pip install --upgrade --upgrade-strategy=eager \
+        "git+https://github.com/geldata/metapkg@${METAPKG_REF}"
+fi
 
 for old in "${dest}"/*.tar; do
     rm -f "${old}"

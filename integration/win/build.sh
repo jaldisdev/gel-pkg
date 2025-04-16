@@ -1,8 +1,7 @@
 #!/bin/bash
 
 set -Exeo pipefail
-
-pip install -U git+https://github.com/geldata/gel-pkg
+shopt -s nullglob
 
 # Circumvent a dubious practice of Windows intercepting
 # bare invocations of "bash" to mean "WSL", since make
@@ -69,6 +68,23 @@ if [ -z "${PACKAGE}" ]; then
     PACKAGE="edgedbpkg.edgedb:EdgeDB"
 fi
 
-python -m metapkg build --dest="${dest}" ${extraopts} "${PACKAGE}"
+if [ -z "${VIRTUAL_ENV}"]; then
+    ${PYTHON} -m venv .venv
+    source .venv/bin/activate
+    ${PYTHON} -m pip install -U pip setuptools wheel
+fi
+
+gel_pkg_url="git+https://github.com/geldata/gel-pkg"
+if [ -n "$GEL_PKG_REF" ]; then
+    gel_pkg_url="${gel_pkg_url}@${GEL_PKG_REF}"
+fi
+${PYTHON} -m pip install --upgrade --upgrade-strategy=eager "$gel_pkg_url"
+if [ -n "$METAPKG_REF" ]; then
+    ${PYTHON} -m pip install --upgrade --upgrade-strategy=eager \
+        "git+https://github.com/geldata/metapkg@${METAPKG_REF}"
+fi
+
+echo ${PYTHON} -m metapkg build --dest="${dest}" ${extraopts} "${PACKAGE}"
+${PYTHON} -m metapkg build -vvv --dest="${dest}" ${extraopts} "${PACKAGE}"
 
 ls -al "${dest}"
