@@ -1,4 +1,4 @@
-From 39352d9d7494b6a22b263bcf68fea8ec0731a4e0 Mon Sep 17 00:00:00 2001
+From 1c80560af2195e1896ade0b0772055c956ad4a3e Mon Sep 17 00:00:00 2001
 From: Elvis Pranskevichus <elvis@edgedb.com>
 Date: Fri, 15 Jul 2022 16:44:07 -0700
 Subject: [PATCH] Add a workaround for WSL1 signal mishandling
@@ -22,12 +22,12 @@ See https://github.com/microsoft/WSL/issues/8619
  9 files changed, 52 insertions(+), 1 deletion(-)
 
 diff --git a/configure b/configure
-index 6db03e4a22..78db894968 100755
+index b1442afe4c1..68dc920001c 100755
 --- a/configure
 +++ b/configure
-@@ -13338,7 +13338,7 @@ $as_echo "#define HAVE_STDBOOL_H 1" >>confdefs.h
- fi
- 
+@@ -13349,7 +13349,7 @@ fi
+ ## Header files
+ ##
  
 -for ac_header in atomic.h copyfile.h execinfo.h getopt.h ifaddrs.h langinfo.h mbarrier.h sys/epoll.h sys/event.h sys/personality.h sys/prctl.h sys/procctl.h sys/signalfd.h sys/ucred.h termios.h ucred.h
 +for ac_header in atomic.h copyfile.h execinfo.h getopt.h ifaddrs.h langinfo.h mbarrier.h sys/epoll.h sys/event.h sys/personality.h sys/prctl.h sys/procctl.h sys/signalfd.h sys/ucred.h sys/utsname.h termios.h ucred.h
@@ -35,10 +35,10 @@ index 6db03e4a22..78db894968 100755
    as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
  ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
 diff --git a/configure.ac b/configure.ac
-index 7531366b75..791ec2579c 100644
+index 6f0230b0bf5..0781c188a0c 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -1473,6 +1473,7 @@ AC_CHECK_HEADERS(m4_normalize([
+@@ -1478,6 +1478,7 @@ AC_CHECK_HEADERS(m4_normalize([
  	sys/procctl.h
  	sys/signalfd.h
  	sys/ucred.h
@@ -47,7 +47,7 @@ index 7531366b75..791ec2579c 100644
  	ucred.h
  ]))
 diff --git a/src/backend/postmaster/postmaster.c b/src/backend/postmaster/postmaster.c
-index bf0241aed0..157559c6e1 100644
+index d032091495b..a29688dde82 100644
 --- a/src/backend/postmaster/postmaster.c
 +++ b/src/backend/postmaster/postmaster.c
 @@ -77,6 +77,10 @@
@@ -81,7 +81,7 @@ index bf0241aed0..157559c6e1 100644
  	/*
  	 * Establish input sockets.
  	 *
-@@ -2068,6 +2078,31 @@ InitProcessGlobals(void)
+@@ -2069,6 +2079,31 @@ InitProcessGlobals(void)
  }
  
  /*
@@ -114,7 +114,7 @@ index bf0241aed0..157559c6e1 100644
   * SIGUSR1 to ask postmaster to check for logrotate and promote files.
   */
 diff --git a/src/backend/storage/ipc/latch.c b/src/backend/storage/ipc/latch.c
-index 608eb66abe..349bd2a5ad 100644
+index 2b4ded38893..84965ca6f93 100644
 --- a/src/backend/storage/ipc/latch.c
 +++ b/src/backend/storage/ipc/latch.c
 @@ -334,6 +334,10 @@ InitializeLatchSupport(void)
@@ -129,7 +129,7 @@ index 608eb66abe..349bd2a5ad 100644
  
  #ifdef WAIT_USE_KQUEUE
 diff --git a/src/backend/utils/init/globals.c b/src/backend/utils/init/globals.c
-index cc61937eef..f46d039f26 100644
+index cc61937eef7..f46d039f266 100644
 --- a/src/backend/utils/init/globals.c
 +++ b/src/backend/utils/init/globals.c
 @@ -117,6 +117,11 @@ bool		IsPostmasterEnvironment = false;
@@ -145,10 +145,10 @@ index cc61937eef..f46d039f26 100644
  
  int			DateStyle = USE_ISO_DATES;
 diff --git a/src/backend/utils/init/miscinit.c b/src/backend/utils/init/miscinit.c
-index 537d92c0cf..8052e393f5 100644
+index 8ac8ecc0dbb..33ee69ae74c 100644
 --- a/src/backend/utils/init/miscinit.c
 +++ b/src/backend/utils/init/miscinit.c
-@@ -130,6 +130,7 @@ InitPostmasterChild(void)
+@@ -131,6 +131,7 @@ InitPostmasterChild(void)
  	/* In EXEC_BACKEND case we will not have inherited BlockSig etc values */
  #ifdef EXEC_BACKEND
  	pqinitmask();
@@ -157,7 +157,7 @@ index 537d92c0cf..8052e393f5 100644
  
  	/* Initialize process-local latch support */
 diff --git a/src/include/miscadmin.h b/src/include/miscadmin.h
-index 90f9b21b25..071aa8d3db 100644
+index 0d563465935..a704f1c201c 100644
 --- a/src/include/miscadmin.h
 +++ b/src/include/miscadmin.h
 @@ -166,6 +166,7 @@ extern PGDLLIMPORT pid_t PostmasterPid;
@@ -169,10 +169,10 @@ index 90f9b21b25..071aa8d3db 100644
  extern PGDLLIMPORT bool ExitOnAnyError;
  
 diff --git a/src/include/pg_config.h.in b/src/include/pg_config.h.in
-index 6d9a0d001f..66850edc9d 100644
+index 0ee4a63eaa6..dcdeb1bc6d3 100644
 --- a/src/include/pg_config.h.in
 +++ b/src/include/pg_config.h.in
-@@ -465,6 +465,9 @@
+@@ -463,6 +463,9 @@
  /* Define to 1 if you have the <sys/ucred.h> header file. */
  #undef HAVE_SYS_UCRED_H
  
@@ -183,7 +183,7 @@ index 6d9a0d001f..66850edc9d 100644
  #undef HAVE_TERMIOS_H
  
 diff --git a/src/include/postmaster/postmaster.h b/src/include/postmaster/postmaster.h
-index 89ad13b788..b8338af449 100644
+index 89ad13b788b..b8338af4495 100644
 --- a/src/include/postmaster/postmaster.h
 +++ b/src/include/postmaster/postmaster.h
 @@ -57,6 +57,7 @@ extern PGDLLIMPORT bool LoadedSSL;
@@ -195,5 +195,5 @@ index 89ad13b788..b8338af449 100644
  extern int	MaxLivePostmasterChildren(void);
  
 -- 
-2.45.2
+2.49.0
 
