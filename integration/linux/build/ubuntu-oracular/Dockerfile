@@ -5,7 +5,7 @@
 #
 
 ARG DOCKER_ARCH
-FROM ${DOCKER_ARCH}centos:8
+FROM ${DOCKER_ARCH}buildpack-deps:oracular
 
 ARG SCCACHE_GHA_ENABLED=off
 ARG ACTIONS_CACHE_SERVICE_V2
@@ -25,51 +25,21 @@ ENV SCCACHE_GHA_ENABLED=$SCCACHE_GHA_ENABLED
 ENV ACTIONS_CACHE_SERVICE_V2=$ACTIONS_CACHE_SERVICE_V2
 
 
-
-# rpm on centos 7 iterates over all fds up to the limit, which is
-# extremely slow. Force it to be small with ulimit.
-#
-# We need to disable the mirrorlist and explicitly set up a
-# baseurl. Switch to the archive.kernel.org mirror while we are at it.
-RUN ulimit -n 1024 \
-	&& echo precedence ::ffff:0:0/96 100 >> /etc/gai.conf \
-    && sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* \
-    && sed -i 's|# \?baseurl=http://mirror.centos.org|baseurl=https://archive.kernel.org/centos-vault/|g' /etc/yum.repos.d/CentOS-* \
-    && yum update -y \
-	&& yum install -y \
+RUN apt-get update \
+	&& apt-get dist-upgrade -y \
+	&& apt-get install -y --no-install-recommends \
 		bison \
-		bzip2 \
-		bzip2-devel \
-		ca-certificates \
-		curl-devel \
-		expat-devel \
 		file \
 		flex \
-		gcc \
-		gcc-c++ \
-		gdbm-devel \
-		gettext \
-		libffi-devel \
-		libuuid-devel \
-		make \
-		ncurses-devel \
-		openssl-devel \
-		patch \
-		perl-Data-Dumper \
-		perl-Getopt-Long \
-		perl-IPC-Cmd \
-		readline-devel \
-		sqlite-devel \
+		libprotobuf-dev \
+		libssl-dev \
+		patchelf \
 		sudo \
 		tcl \
-		unzip \
-		wget \
-		xz \
-		xz-devel \
+		tk-dev \
 		zip \
-		zlib-devel \
-		zstd
-
+		zstd \
+	&& rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p '_bootstrap'; /bin/echo -e '#!/usr/bin/env bash\n\
 \n\
@@ -781,15 +751,11 @@ RUN --mount=type=cache,target=/root/.cache/sccache \
 	&& /_bootstrap/sccache.sh \
 	&& eval $(/_bootstrap/setup-sccache.sh) \
 	&& /_bootstrap/python.sh \
-	&& /_bootstrap/git.sh \
-	&& /_bootstrap/patchelf.sh \
-	&& /_bootstrap/tar.sh \
-	&& /_bootstrap/pkgconf.sh \
 	&& /_bootstrap/node.sh \
 	&& /_bootstrap/yarn.sh \
 	&& /_bootstrap/go.sh \
-	&& /_bootstrap/meson.sh \
 	&& /_bootstrap/ninja.sh \
+	&& /_bootstrap/meson.sh \
 	&& /_bootstrap/cmake.sh \
 	&& sccache --show-stats
 RUN rm -rf /_bootstrap
