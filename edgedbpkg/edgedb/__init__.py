@@ -99,6 +99,9 @@ class GelNoPostgres(packages.BundledPythonPackage):
         ">=5.0.dev1": [
             "python-edgedb (~= 3.12.0)",
         ],
+        "*": [
+            "pypkg-regex (<2025.7.29)",  # no sdist on PyPI for more recent vers
+        ],
     }
 
     artifact_requirements = packages.merge_requirements(python_requirements)
@@ -106,6 +109,7 @@ class GelNoPostgres(packages.BundledPythonPackage):
     common_build_reqs: packages.RequirementsSpec = {
         "*": [
             "pyentrypoint (>=1.0.0)",
+            "pypkg-regex (<2025.7.29)",  # no sdist on PyPI for more recent vers
         ],
     }
 
