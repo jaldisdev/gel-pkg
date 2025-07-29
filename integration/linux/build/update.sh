@@ -169,7 +169,7 @@ $SED -ri \
 	-e 's!^(FROM (\$\{DOCKER_ARCH\}?\w+)):%%PLACEHOLDER%%!\1:'"${variant}"'!'\
 	"${target}"
 
-for bootstrap in $(ls _bootstrap/*.sh | sort); do
+for bootstrap in $(ls _bootstrap/*.sh | env LC_ALL=C sort); do
 	embed_script "$bootstrap" "$target"
 done
 
