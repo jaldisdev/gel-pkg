@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 python.set_python_runtime_dependency(
     poetry_dep.Dependency(
         name="python-edgedb",
-        constraint=">=3.10.0,<3.13.0",
+        constraint=">=3.11.0,<3.13.0",
         allows_prereleases=True,
     )
 )
