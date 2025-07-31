@@ -17,6 +17,18 @@ if [ -n "${PKG_TEST_JOBS}" ]; then
 else
     dash_j=""
 fi
+test_select=""
+if [ -n "${PKG_TEST_SELECT}" ]; then
+    for pattern in $PKG_TEST_SELECT; do
+      test_select="$test_select --include=${pattern}"
+    done
+fi
+test_exclude=""
+if [ -n "${PKG_TEST_EXCLUDE}" ]; then
+    for pattern in $PKG_TEST_EXCLUDE; do
+      test_exclude="$test_exclude --exclude=${pattern}"
+    done
+fi
 
 machine=$(uname -m)
 cliurl="https://packages.geldata.com/dist/${machine}-unknown-linux-musl/gel-cli"
@@ -63,6 +75,6 @@ fi
 
 exec gosu gel:gel /gel/bin/python3 \
     -m edb.tools --no-devmode test \
-    /gel/share/tests \
-    -e cqa_ -e tools_ \
+    /gel/share/tests ${test_select} \
+    -e cqa_ -e tools_ ${test_exclude} \
     --verbose ${dash_j}

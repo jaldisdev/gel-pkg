@@ -110,11 +110,23 @@ if [ -n "${PKG_TEST_JOBS}" ]; then\n\
 else\n\
     dash_j=""\n\
 fi\n\
+test_select=""\n\
+if [ -n "${PKG_TEST_SELECT}" ]; then\n\
+    for pattern in $PKG_TEST_SELECT; do\n\
+      test_select="$test_select --include=${pattern}"\n\
+    done\n\
+fi\n\
+test_exclude=""\n\
+if [ -n "${PKG_TEST_EXCLUDE}" ]; then\n\
+    for pattern in $PKG_TEST_EXCLUDE; do\n\
+      test_exclude="$test_exclude --exclude=${pattern}"\n\
+    done\n\
+fi\n\
 \n\
 cmd="/usr/lib/${machine}-linux-gnu/${server}/bin/python3 \\\n\
      -m edb.tools --no-devmode test \\\n\
-     /usr/share/${server}/tests \\\n\
-     -e cqa_ -e tools_ \\\n\
+     /usr/share/${server}/tests ${test_select} \\\n\
+     -e cqa_ -e tools_ ${test_exclude} \\\n\
      --verbose ${dash_j}"\n\
 \n\
 if [ "$1" == "bash" ]; then\n\

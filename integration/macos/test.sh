@@ -10,9 +10,21 @@ if [ -n "${PKG_PLATFORM_VERSION}" ]; then
     dest="${dest}-${PKG_PLATFORM_VERSION}"
 fi
 if [ -n "${PKG_TEST_JOBS}" ]; then
-    dash_j="-j${PKG_TEST_JOBS}"
+    dash_j="--jobs=${PKG_TEST_JOBS}"
 else
     dash_j=""
+fi
+test_select=""
+if [ -n "${PKG_TEST_SELECT}" ]; then
+    for pattern in $PKG_TEST_SELECT; do
+      test_select="$test_select --include=${pattern}"
+    done
+fi
+test_exclude=""
+if [ -n "${PKG_TEST_EXCLUDE}" ]; then
+    for pattern in $PKG_TEST_EXCLUDE; do
+      test_exclude="$test_exclude --exclude=${pattern}"
+    done
 fi
 
 cliurl="https://packages.geldata.com/dist/${PKG_PLATFORM_VERSION}-apple-darwin"
@@ -68,5 +80,6 @@ fi
 "${workdir}/bin/python3" \
     -m edb.tools --no-devmode test \
     ${file_arg} \
-    -e cqa_ -e tools_ \
+    /gel/share/tests ${test_select} \
+    --exclude="cqa_" --exclude="tools_" ${test_exclude} \
     --verbose ${dash_j}
