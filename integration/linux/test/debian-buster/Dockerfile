@@ -110,6 +110,13 @@ if [ -n "${PKG_TEST_JOBS}" ]; then\n\
 else\n\
     dash_j=""\n\
 fi\n\
+test_dir="/usr/share/${server}/tests"\n\
+test_files="$test_dir"\n\
+if [ -n "${PKG_TEST_FILES}" ]; then\n\
+    # ${PKG_TEST_FILES} is specificaly used outside the quote so that it\n\
+    # can contain a glob.\n\
+    test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)\n\
+fi\n\
 test_select=""\n\
 if [ -n "${PKG_TEST_SELECT}" ]; then\n\
     for pattern in $PKG_TEST_SELECT; do\n\
@@ -125,7 +132,7 @@ fi\n\
 \n\
 cmd="/usr/lib/${machine}-linux-gnu/${server}/bin/python3 \\\n\
      -m edb.tools --no-devmode test \\\n\
-     /usr/share/${server}/tests ${test_select} \\\n\
+     ${test_dir} ${test_select} \\\n\
      -e cqa_ -e tools_ ${test_exclude} \\\n\
      --verbose ${dash_j}"\n\
 \n\

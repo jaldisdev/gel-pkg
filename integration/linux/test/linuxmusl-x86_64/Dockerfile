@@ -117,23 +117,6 @@ fi\n\
 if [ -n "${PKG_PLATFORM_VERSION}" ]; then\n\
     dest="${dest}-${PKG_PLATFORM_VERSION}"\n\
 fi\n\
-if [ -n "${PKG_TEST_JOBS}" ]; then\n\
-    dash_j="-j${PKG_TEST_JOBS}"\n\
-else\n\
-    dash_j=""\n\
-fi\n\
-test_select=""\n\
-if [ -n "${PKG_TEST_SELECT}" ]; then\n\
-    for pattern in $PKG_TEST_SELECT; do\n\
-      test_select="$test_select --include=${pattern}"\n\
-    done\n\
-fi\n\
-test_exclude=""\n\
-if [ -n "${PKG_TEST_EXCLUDE}" ]; then\n\
-    for pattern in $PKG_TEST_EXCLUDE; do\n\
-      test_exclude="$test_exclude --exclude=${pattern}"\n\
-    done\n\
-fi\n\
 \n\
 machine=$(uname -m)\n\
 cliurl="https://packages.geldata.com/dist/${machine}-unknown-linux-musl/gel-cli"\n\
@@ -174,13 +157,38 @@ addgroup gel\n\
 touch /etc/passwd\n\
 adduser -G gel -H -D gel\n\
 \n\
+if [ -n "${PKG_TEST_JOBS}" ]; then\n\
+    dash_j="-j${PKG_TEST_JOBS}"\n\
+else\n\
+    dash_j=""\n\
+fi\n\
+test_dir="/gel/share/tests"\n\
+test_files="$test_dir"\n\
+if [ -n "${PKG_TEST_FILES}" ]; then\n\
+    # ${PKG_TEST_FILES} is specificaly used outside the quote so that it\n\
+    # can contain a glob.\n\
+    test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)\n\
+fi\n\
+test_select=""\n\
+if [ -n "${PKG_TEST_SELECT}" ]; then\n\
+    for pattern in $PKG_TEST_SELECT; do\n\
+      test_select="$test_select --include=${pattern}"\n\
+    done\n\
+fi\n\
+test_exclude=""\n\
+if [ -n "${PKG_TEST_EXCLUDE}" ]; then\n\
+    for pattern in $PKG_TEST_EXCLUDE; do\n\
+      test_exclude="$test_exclude --exclude=${pattern}"\n\
+    done\n\
+fi\n\
+\n\
 if [ "$1" == "bash" ]; then\n\
     exec /bin/sh\n\
 fi\n\
 \n\
 exec gosu gel:gel /gel/bin/python3 \\\n\
     -m edb.tools --no-devmode test \\\n\
-    /gel/share/tests ${test_select} \\\n\
+    ${test_files} ${test_select} \\\n\
     -e cqa_ -e tools_ ${test_exclude} \\\n\
     --verbose ${dash_j}\n\' >/entrypoint.sh
 

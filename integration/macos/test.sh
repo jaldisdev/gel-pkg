@@ -14,6 +14,13 @@ if [ -n "${PKG_TEST_JOBS}" ]; then
 else
     dash_j=""
 fi
+test_dir="${workdir}/share/tests"
+test_files="$test_dir"
+if [ -n "${PKG_TEST_FILES}" ]; then
+    # ${PKG_TEST_FILES} is specificaly used outside the quote so that it
+    # can contain a glob.
+    test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)
+fi
 test_select=""
 if [ -n "${PKG_TEST_SELECT}" ]; then
     for pattern in $PKG_TEST_SELECT; do
@@ -68,18 +75,8 @@ fi
 
 export PATH="${workdir}/bin/:${PATH}"
 
-test_dir="${workdir}/share/tests"
-if [ -n "${PKG_TEST_FILES}" ]; then
-    # ${PKG_TEST_FILES} is specificaly used outside the quote so that it
-    # can contain a glob.
-    file_arg=$(cd "$test_dir" && realpath $PKG_TEST_FILES)
-else
-    file_arg="$test_dir"
-fi
-
 "${workdir}/bin/python3" \
     -m edb.tools --no-devmode test \
-    ${file_arg} \
-    /gel/share/tests ${test_select} \
+    ${test_files} ${test_select} \
     --exclude="cqa_" --exclude="tools_" ${test_exclude} \
     --verbose ${dash_j}

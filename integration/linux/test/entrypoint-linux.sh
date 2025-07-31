@@ -12,23 +12,6 @@ fi
 if [ -n "${PKG_PLATFORM_VERSION}" ]; then
     dest="${dest}-${PKG_PLATFORM_VERSION}"
 fi
-if [ -n "${PKG_TEST_JOBS}" ]; then
-    dash_j="-j${PKG_TEST_JOBS}"
-else
-    dash_j=""
-fi
-test_select=""
-if [ -n "${PKG_TEST_SELECT}" ]; then
-    for pattern in $PKG_TEST_SELECT; do
-      test_select="$test_select --include=${pattern}"
-    done
-fi
-test_exclude=""
-if [ -n "${PKG_TEST_EXCLUDE}" ]; then
-    for pattern in $PKG_TEST_EXCLUDE; do
-      test_exclude="$test_exclude --exclude=${pattern}"
-    done
-fi
 
 machine=$(uname -m)
 cliurl="https://packages.geldata.com/dist/${machine}-unknown-linux-musl/gel-cli"
@@ -69,12 +52,37 @@ addgroup gel
 touch /etc/passwd
 adduser -G gel -H -D gel
 
+if [ -n "${PKG_TEST_JOBS}" ]; then
+    dash_j="-j${PKG_TEST_JOBS}"
+else
+    dash_j=""
+fi
+test_dir="/gel/share/tests"
+test_files="$test_dir"
+if [ -n "${PKG_TEST_FILES}" ]; then
+    # ${PKG_TEST_FILES} is specificaly used outside the quote so that it
+    # can contain a glob.
+    test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)
+fi
+test_select=""
+if [ -n "${PKG_TEST_SELECT}" ]; then
+    for pattern in $PKG_TEST_SELECT; do
+      test_select="$test_select --include=${pattern}"
+    done
+fi
+test_exclude=""
+if [ -n "${PKG_TEST_EXCLUDE}" ]; then
+    for pattern in $PKG_TEST_EXCLUDE; do
+      test_exclude="$test_exclude --exclude=${pattern}"
+    done
+fi
+
 if [ "$1" == "bash" ]; then
     exec /bin/sh
 fi
 
 exec gosu gel:gel /gel/bin/python3 \
     -m edb.tools --no-devmode test \
-    /gel/share/tests ${test_select} \
+    ${test_files} ${test_select} \
     --exclude="cqa_" --exclude="tools_" ${test_exclude} \
     --verbose ${dash_j}
