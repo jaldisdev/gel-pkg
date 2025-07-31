@@ -462,9 +462,15 @@ class GelNoPostgres(packages.BundledPythonPackage):
             "import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())"
         )
 
-        all_build_deps = build.get_build_reqs(self, recursive=True)
+        dep_names = [
+            dep.name
+            for dep in self.requires
+            if dep.is_activated() and build.env.is_valid_for_marker(dep.marker)
+        ]
+
+        deps = build.get_packages(dep_names, recursive=True)
         ld_env_args = build.get_ld_env(
-            deps=all_build_deps,
+            deps=deps,
             wd="${_wd}",
             extra=["${_ldlibpath}"],
         )
