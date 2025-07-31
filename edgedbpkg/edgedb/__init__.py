@@ -23,6 +23,8 @@ from edgedbpkg.pgext import edb_stat_statements
 from edgedbpkg import python as python_bundle
 from edgedbpkg import pyentrypoint
 from edgedbpkg import libprotobuf_c
+from edgedbpkg import libjpeg
+from edgedbpkg import zlib
 
 if TYPE_CHECKING:
     from cleo.io import io as cleo_io
@@ -99,12 +101,18 @@ class GelNoPostgres(packages.BundledPythonPackage):
         ">=5.0.dev1": [
             "python-edgedb (~= 3.12.0)",
         ],
+    }
+
+    common_requirements: packages.RequirementsSpec = {
         "*": [
             "pypkg-regex (<2025.7.29)",  # no sdist on PyPI for more recent vers
         ],
     }
 
-    artifact_requirements = packages.merge_requirements(python_requirements)
+    artifact_requirements = packages.merge_requirements(
+        common_requirements,
+        python_requirements,
+    )
 
     common_build_reqs: packages.RequirementsSpec = {
         "*": [
@@ -268,6 +276,7 @@ class GelNoPostgres(packages.BundledPythonPackage):
         repo.register_package_impl("cryptography", Cryptography)
         repo.register_package_impl("cffi", Cffi)
         repo.register_package_impl("jwcrypto", JWCrypto)
+        repo.register_package_impl("pillow", Pillow)
         repo.register_package_impl("gel", EdgeDBPython)
         repo.register_package_impl("maturin", Maturin)
         repo.register_package_impl("cython", Cython)
@@ -797,6 +806,25 @@ class JWCrypto(packages.PythonPackage):
         entries.append("{docdir}/jwcrypto")
         entries.append("{docdir}/jwcrypto/**")
         return entries
+
+
+class Pillow(packages.PythonPackage):
+    bundle_deps = [
+        libjpeg.LibJPEG(version="3.1.1"),
+        zlib.Zlib("1.3.1"),
+    ]
+
+    def get_requirements(self) -> list[poetry_dep.Dependency]:
+        reqs = super().get_requirements()
+        reqs.append(poetry_dep.Dependency("libjpeg", "*"))
+        reqs.append(poetry_dep.Dependency("zlib", "*"))
+        return reqs
+
+    def get_build_requirements(self) -> list[poetry_dep.Dependency]:
+        reqs = super().get_build_requirements()
+        reqs.append(poetry_dep.Dependency("libjpeg-dev", "*"))
+        reqs.append(poetry_dep.Dependency("zlib-dev", "*"))
+        return reqs
 
 
 class EdgeDBPython(packages.PythonPackage):
