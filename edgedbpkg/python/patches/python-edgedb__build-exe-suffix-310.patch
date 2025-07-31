@@ -1,0 +1,125 @@
+From fdb349203e128e6dfb874ccec19a1cc9c79ef824 Mon Sep 17 00:00:00 2001
+From: Elvis Pranskevichus <elvis@geldata.com>
+Date: Thu, 31 Jul 2025 00:31:41 -0700
+Subject: [PATCH] Make build executable suffix configurable
+
+---
+ configure    | 33 +++++++++++++++++++++++++++++++--
+ configure.ac | 17 +++++++++++++++--
+ 2 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/configure b/configure
+index b746b69caac..65a99e7df94 100755
+--- a/configure
++++ b/configure
+@@ -829,6 +829,7 @@ with_framework_name
+ enable_framework
+ with_cxx_main
+ with_suffix
++with_build_suffix
+ enable_shared
+ enable_profiling
+ with_pydebug
+@@ -1559,6 +1560,10 @@ Optional Packages:
+                           compile main() and link Python executable with C++
+                           compiler specified in COMPILER (default is $CXX)
+   --with-suffix=SUFFIX    set executable suffix to SUFFIX (default is '.exe')
++  --with-build-suffix=SUFFIX
++                          set build executable suffix to SUFFIX (default is
++                          value of --with-suffix, otheriwse '.exe' if building
++                          on a case-insensitive filesystem)
+   --with-pydebug          build with Py_DEBUG defined (default is no)
+   --with-trace-refs       enable tracing references for debugging purpose
+                           (default is no)
+@@ -5796,6 +5801,31 @@ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $EXEEXT" >&5
+ $as_echo "$EXEEXT" >&6; }
+ 
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-build-suffix" >&5
++$as_echo_n "checking for --with-build-suffix... " >&6; }
++
++# Check whether --with-build-suffix was given.
++if test "${with_build_suffix+set}" = set; then :
++  withval=$with_build_suffix;
++	case $with_build_suffix in #(
++  no) :
++    BUILDEXEEXT= ;; #(
++  yes) :
++    BUILDEXEEXT=.exe ;; #(
++  *) :
++    BUILDEXEEXT=$with_build_suffix
++   ;;
++esac
++
++else
++
++  BUILDEXEEXT=$EXEEXT
++
++fi
++
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $BUILDEXEEXT" >&5
++$as_echo "$BUILDEXEEXT" >&6; }
++
+ # Test whether we're running on a non-case-sensitive system, in which
+ # case we give a warning if no ext is given
+ 
+@@ -5805,7 +5835,7 @@ if test ! -d CaseSensitiveTestDir; then
+ mkdir CaseSensitiveTestDir
+ fi
+ 
+-if test -d casesensitivetestdir
++if test -d casesensitivetestdir && test -z "$BUILDEXEEXT"
+ then
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+ $as_echo "yes" >&6; }
+@@ -5813,7 +5843,6 @@ $as_echo "yes" >&6; }
+ else
+ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+ $as_echo "no" >&6; }
+-	BUILDEXEEXT=$EXEEXT
+ fi
+ rmdir CaseSensitiveTestDir
+ 
+diff --git a/configure.ac b/configure.ac
+index 59f15ac8424..150d97d6b66 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1015,6 +1015,20 @@ AC_ARG_WITH(suffix,
+ 	esac])
+ AC_MSG_RESULT($EXEEXT)
+ 
++AC_MSG_CHECKING([for --with-build-suffix])
++AC_ARG_WITH([build-suffix],
++	    [AS_HELP_STRING([--with-build-suffix=SUFFIX], [set build executable suffix to SUFFIX (default is value of --with-suffix, otheriwse '.exe' if building on a case-insensitive filesystem)])],
++[
++	AS_CASE([$with_build_suffix],
++    [no], [BUILDEXEEXT=],
++    [yes], [BUILDEXEEXT=.exe],
++    [BUILDEXEEXT=$with_build_suffix]
++  )
++], [
++  BUILDEXEEXT=$EXEEXT
++])
++AC_MSG_RESULT([$BUILDEXEEXT])
++
+ # Test whether we're running on a non-case-sensitive system, in which
+ # case we give a warning if no ext is given
+ AC_SUBST(BUILDEXEEXT)
+@@ -1023,13 +1037,12 @@ if test ! -d CaseSensitiveTestDir; then
+ mkdir CaseSensitiveTestDir
+ fi
+ 
+-if test -d casesensitivetestdir
++if test -d casesensitivetestdir && test -z "$BUILDEXEEXT"
+ then
+     AC_MSG_RESULT(yes)
+     BUILDEXEEXT=.exe
+ else
+ 	AC_MSG_RESULT(no)
+-	BUILDEXEEXT=$EXEEXT
+ fi
+ rmdir CaseSensitiveTestDir
+ 
+-- 
+2.49.1
+

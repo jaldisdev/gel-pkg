@@ -105,6 +105,7 @@ class Python(packages.BundledCAutoconfPackage):
             "--enable-ipv6": None,
             "--with-dbmliborder": "bdb:gdbm",
             "--with-computed-gotos": None,
+            "--with-build-suffix": "3",
         }
 
         if build.extra_optimizations_enabled():
@@ -156,18 +157,13 @@ class Python(packages.BundledCAutoconfPackage):
         prefix = build.get_rel_install_prefix(self)
         dest = build.get_temp_root(relative_to="pkgbuild")
 
-        if platform.system() == "Darwin":
-            exe_suffix = ".exe"
-        else:
-            exe_suffix = ""
-
         sitescript = (
             "import site; import pathlib; "
             "print(pathlib.Path( "
             'site.getsitepackages([\\"${p}\\"])[0]).resolve())'
         )
 
-        python = f"python{exe_suffix}"
+        python = "python3"
 
         wrapper_env_args = dict(self.get_build_env(build, wd="${d}"))
 
