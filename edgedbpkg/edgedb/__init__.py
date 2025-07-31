@@ -280,6 +280,7 @@ class GelNoPostgres(packages.BundledPythonPackage):
         repo.register_package_impl("gel", EdgeDBPython)
         repo.register_package_impl("maturin", Maturin)
         repo.register_package_impl("cython", Cython)
+        repo.register_package_impl("numpy", NumPy)
         return repo
 
     @property
@@ -748,6 +749,23 @@ class EdgeDB(EdgeDBNoPostgres):
         EdgeDBNoPostgres.artifact_requirements,
         EdgeDBNoPostgres.postgres_requirements,
     )
+
+
+class NumPy(packages.PythonPackage):
+    def sh_get_build_wheel_env(
+        self, build: targets.Build, *, site_packages: str, wd: str
+    ) -> packages.Args:
+        env = super().sh_get_build_wheel_env(
+            build, site_packages=site_packages, wd=wd
+        )
+
+        if build.target.ident.startswith("macos"):
+            env |= {
+                "NPY_LAPACK_ORDER": "accelerate",
+                "NPY_BLAS_ORDER": "accelerate",
+            }
+
+        return env
 
 
 class Cryptography(packages.PythonPackage):
