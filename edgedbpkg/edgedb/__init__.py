@@ -270,6 +270,7 @@ class GelNoPostgres(packages.BundledPythonPackage):
         repo.register_package_impl("jwcrypto", JWCrypto)
         repo.register_package_impl("gel", EdgeDBPython)
         repo.register_package_impl("maturin", Maturin)
+        repo.register_package_impl("cython", Cython)
         return repo
 
     @property
@@ -806,6 +807,12 @@ class EdgeDBPython(packages.PythonPackage):
 
 
 class Maturin(packages.PythonPackage):
+    @property
+    def provides_build_tools(self) -> bool:
+        return True
+
+
+class Cython(packages.PythonPackage):
     @property
     def provides_build_tools(self) -> bool:
         return True
