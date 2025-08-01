@@ -1,0 +1,43 @@
+From 834aca36fd89c2c4033999f2415cb41c1ddeec79 Mon Sep 17 00:00:00 2001
+From: Elvis Pranskevichus <elvis@geldata.com>
+Date: Thu, 31 Jul 2025 21:44:25 -0700
+Subject: [PATCH] Fix for GCC 8
+
+---
+ python/src/sentencepiece/sentencepiece_wrap.cxx | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/python/src/sentencepiece/sentencepiece_wrap.cxx b/python/src/sentencepiece/sentencepiece_wrap.cxx
+index 24cc492..8a2669c 100644
+--- a/src/sentencepiece/sentencepiece_wrap.cxx
++++ b/src/sentencepiece/sentencepiece_wrap.cxx
+@@ -3394,7 +3394,7 @@ inline void InitNumThreads(const std::vector<T> &ins, int *num_threads) {
+     for (int n = 0;  n < num_threads; ++n) {                            \
+       pool.Schedule([&]() {                                             \
+           size_t i = 0;                                                 \
+-          while ((i = std::atomic_fetch_add(&index, 1)) < outs.size()) { \
++          while ((i = index.fetch_add(1)) < outs.size()) {              \
+             auto out = enable_sampling ?                                \
+                        self->Sample##FuncName(ins[i],                   \
+                                               nbest_size, alpha) :      \
+@@ -3418,7 +3418,7 @@ inline void InitNumThreads(const std::vector<T> &ins, int *num_threads) {
+     for (int n = 0;  n < num_threads; ++n) {                            \
+       pool.Schedule([&]() {                                             \
+           size_t i = 0;                                                 \
+-          while ((i = std::atomic_fetch_add(&index, 1)) < outs.size()) { \
++          while ((i = index.fetch_add(1)) < outs.size()) {              \
+             CheckIds(ins[i], self->GetPieceSize());                     \
+             auto out = self->FuncName(ins[i]);                          \
+             ConvertToUnicodeSpans(&out);                                \
+@@ -4041,7 +4041,7 @@ SWIGINTERN std::vector< float > sentencepiece_SentencePieceProcessor__CalculateE
+       for (int n = 0;  n < num_threads; ++n) {
+         pool.Schedule([&]() {
+            size_t i = 0;
+-           while ((i = std::atomic_fetch_add(&index, 1)) < outs.size()) {
++           while ((i = index.fetch_add(1)) < outs.size()) {
+              outs[i] = self->CalculateEntropy(ins[i], alpha);
+            }
+          });
+-- 
+2.50.1
+
