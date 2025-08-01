@@ -2,6 +2,10 @@
 
 set -eEx
 
+trim() {
+    printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
 dest="artifacts"
 if [ -n "${PKG_PLATFORM}" ]; then
     dest="${dest}/${PKG_PLATFORM}"
@@ -58,7 +62,7 @@ else
 fi
 test_dir="${workdir}/share/tests"
 test_files="$test_dir"
-if [ -n "${PKG_TEST_FILES}" ]; then
+if [ -n "$(trim "${PKG_TEST_FILES}")" ]; then
     # ${PKG_TEST_FILES} is specificaly used outside the quote so that it
     # can contain a glob.
     test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)

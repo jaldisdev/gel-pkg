@@ -9,6 +9,10 @@ RUN /bin/echo -e '#!/bin/bash\n\
 \n\
 set -ex\n\
 \n\
+trim() {\n\
+    printf '\''%s'\'' "$1" | sed '\''s/^[[:space:]]*//;s/[[:space:]]*$//'\''\n\
+}\n\
+\n\
 dest="artifacts"\n\
 if [ -n "${PKG_PLATFORM}" ]; then\n\
     dest+="/${PKG_PLATFORM}"\n\
@@ -110,7 +114,7 @@ else\n\
 fi\n\
 test_dir="/usr/share/${server}/tests"\n\
 test_files="$test_dir"\n\
-if [ -n "${PKG_TEST_FILES}" ]; then\n\
+if [ -n "$(trim "${PKG_TEST_FILES}")" ]; then\n\
     # ${PKG_TEST_FILES} is specificaly used outside the quote so that it\n\
     # can contain a glob.\n\
     test_files=$(cd "$test_dir" && realpath $PKG_TEST_FILES)\n\
