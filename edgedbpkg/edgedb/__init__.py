@@ -50,11 +50,11 @@ class GelNoPostgres(packages.BundledPythonPackage):
 
     sources = [
         {
-            "url": "git+https://github.com/edgedb/edgedb.git",
+            "url": "git+https://github.com/jaldisdev/gel.git",
             "extras": {
                 # We obtain postgres from the fork repo directly,
                 # so there's no need to clone it as a submodule.
-                "exclude_submodules": ["postgres"],
+                # "exclude_submodules": ["postgres"],
                 "clone_depth": 0,
             },
         },

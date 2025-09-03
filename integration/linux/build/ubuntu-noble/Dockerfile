@@ -716,7 +716,7 @@ if [ -z "${VIRTUAL_ENV}"]; then\n\
     ${PYTHON} -m pip install -U pip setuptools wheel\n\
 fi\n\
 \n\
-gel_pkg_url="git+https://github.com/geldata/gel-pkg"\n\
+gel_pkg_url="git+https://github.com/jaldisdev/gel-pkg"\n\
 if [ -n "$GEL_PKG_REF" ]; then\n\
     gel_pkg_url="${gel_pkg_url}@${GEL_PKG_REF}"\n\
 fi\n\
